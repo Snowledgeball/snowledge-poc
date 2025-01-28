@@ -1,0 +1,16 @@
+{
+    "name": "dev",
+    "image": "starknetfoundation/starknet-dev:latest",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "StarkWare.cairo1",
+                "tamasfe.even-better-toml"
+            ]
+        }
+    },
+    "runArgs": [
+        "--user",
+        "root"
+    ] // Ajouter cette ligne pour exécuter en tant que root
+}
