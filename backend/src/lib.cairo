@@ -1,6 +1,3 @@
 // Importation du module du contrat SoulboundToken
-mod soulbound_token;
-
-pub use soulbound_token::{
-    SoulboundToken, ISoulboundTokenDispatcher, ISoulboundTokenDispatcherTrait,
-};
+mod decentralized_id;
+pub use decentralized_id::{IDecentralizedIdDispatcher, IDecentralizedIdDispatcherTrait};
