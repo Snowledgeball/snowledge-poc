@@ -25,29 +25,29 @@ pub trait IDecentralizedId<TContractState> {
 #[starknet::contract]
 pub mod DecentralizedId {
     use super::IDecentralizedId;
-    use openzeppelin_token::erc721::ERC721Component;
-    use openzeppelin_token::erc721::ERC721Component::InternalTrait as ERC721InternalTrait;
+    use openzeppelin_introspection::src5::SRC5Component;
+    use openzeppelin_token::erc721::{ERC721Component, ERC721HooksEmptyImpl};
     use openzeppelin_access::ownable::OwnableComponent;
     use openzeppelin_access::ownable::OwnableComponent::InternalTrait as OwnableInternalTrait;
-    use openzeppelin_introspection::src5::SRC5Component;
     use starknet::ContractAddress;
     use starknet::storage::{StorageMapReadAccess, StorageMapWriteAccess, Map};
     use core::num::traits::Zero;
     use core::array::{ArrayTrait, ToSpanTrait};
 
-
     component!(path: ERC721Component, storage: erc721, event: ERC721Event);
     component!(path: SRC5Component, storage: src5, event: SRC5Event);
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
 
-    // External
-    #[abi(embed_v0)]
-    impl ERC721Impl = ERC721Component::ERC721MetadataCamelOnlyImpl<ContractState>;
 
     #[abi(embed_v0)]
     impl OwnableImpl = OwnableComponent::OwnableImpl<ContractState>;
 
-    impl ERC721HooksEmptyImpl of ERC721Component::ERC721HooksTrait<ContractState> {}
+    // External
+    #[abi(embed_v0)]
+    impl ERC721MixinImpl = ERC721Component::ERC721MixinImpl<ContractState>;
+
+    // Internal
+    impl ERC721InternalImpl = ERC721Component::InternalImpl<ContractState>;
 
     #[storage]
     struct Storage {
@@ -60,6 +60,7 @@ pub mod DecentralizedId {
         #[substorage(v0)]
         ownable: OwnableComponent::Storage,
     }
+
 
     #[event]
     #[derive(Drop, starknet::Event)]
