@@ -1,18 +1,10 @@
 // SPDX-License-Identifier: MIT
-#[derive(Drop, Serde)]
-struct ArrayBytes {
-    data: Array<felt252>,
-    pending_word: felt252,
-    pending_word_len: usize,
-}
-
-
 #[starknet::interface]
 pub trait IDecentralizedId<TContractState> {
     #[external(v0)]
-    fn safe_mint(ref self: TContractState, recipient: starknet::ContractAddress, uri: ArrayBytes);
+    fn safe_mint(ref self: TContractState, recipient: starknet::ContractAddress, uri: ByteArray);
     #[external(v0)]
-    fn get_token_uri(self: @TContractState, token_id: u256) -> ArrayBytes;
+    fn get_token_uri(self: @TContractState, token_id: u256) -> ByteArray;
     #[external(v0)]
     fn get_owner_of(self: @TContractState, token_id: u256) -> starknet::ContractAddress;
     #[external(v0)]
@@ -28,7 +20,6 @@ pub trait IDecentralizedId<TContractState> {
 #[starknet::contract]
 pub mod DecentralizedId {
     use super::IDecentralizedId;
-    use super::ArrayBytes;
     use openzeppelin_introspection::src5::SRC5Component;
     use openzeppelin_token::erc721::{ERC721Component, ERC721HooksEmptyImpl};
     use openzeppelin_access::ownable::OwnableComponent;
@@ -39,7 +30,8 @@ pub mod DecentralizedId {
         StoragePointerReadAccess,
     };
     use core::num::traits::Zero;
-    use core::array::{ArrayTrait, ToSpanTrait, Span};
+    use core::array::{ArrayTrait, ToSpanTrait};
+
     component!(path: ERC721Component, storage: erc721, event: ERC721Event);
     component!(path: SRC5Component, storage: src5, event: SRC5Event);
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
@@ -55,13 +47,11 @@ pub mod DecentralizedId {
     // Internal
     impl ERC721InternalImpl = ERC721Component::InternalImpl<ContractState>;
 
-
     #[storage]
     struct Storage {
-        owner_of: Map<u256, ContractAddress>,
-        token_uri_data: Map<(u256, usize), felt252>,
-        token_uri_len: Map<u256, usize>,
         total_supply: u256,
+        owner_of: Map<u256, ContractAddress>,
+        token_uri: Map<u256, ByteArray>,
         #[substorage(v0)]
         erc721: ERC721Component::Storage,
         #[substorage(v0)]
@@ -69,6 +59,7 @@ pub mod DecentralizedId {
         #[substorage(v0)]
         ownable: OwnableComponent::Storage,
     }
+
 
     #[event]
     #[derive(Drop, starknet::Event)]
@@ -90,7 +81,7 @@ pub mod DecentralizedId {
     fn constructor(ref self: ContractState, owner: ContractAddress) {
         let name = "DecentralizedId";
         let symbol = "DID";
-        let base_uri = "https://hindigo-hidden-meerkat-77.mypinata.cloud/ipfs/";
+        let base_uri = "indigo-hidden-meerkat-77.mypinata.cloud";
 
         self.total_supply.write(0);
         self.erc721.initializer(name, symbol, base_uri);
@@ -100,41 +91,21 @@ pub mod DecentralizedId {
 
     #[abi(embed_v0)]
     impl DecentralizedIdImpl of IDecentralizedId<ContractState> {
-        fn safe_mint(ref self: ContractState, recipient: ContractAddress, uri: ArrayBytes) {
+        fn safe_mint(ref self: ContractState, recipient: ContractAddress, uri: ByteArray) {
             self.ownable.assert_only_owner();
             let token_id = self.total_supply.read();
             let current_owner = self.owner_of.read(token_id);
             assert(current_owner.is_zero(), Errors::TokenAlreadyMinted);
 
             self.owner_of.write(token_id, recipient);
-            self.token_uri_len.write(token_id, uri.data.len());
-            let mut i: usize = 0;
-            loop {
-                if i >= uri.data.len() {
-                    break;
-                }
-                self.token_uri_data.write((token_id, i), *uri.data.at(i));
-                i += 1;
-            };
-
-            let data: Array<felt252> = array![];
+            self.token_uri.write(token_id, uri);
+            let data: Array<felt252> = array![]; // Pas de data car pas de onERC721Received
             self.erc721.safe_mint(recipient, token_id.into(), data.span());
             self.total_supply.write(self.total_supply.read() + 1);
         }
 
-        fn get_token_uri(self: @ContractState, token_id: u256) -> ArrayBytes {
-            let len = self.token_uri_len.read(token_id);
-            let mut data = array![];
-            let mut i: usize = 0;
-            loop {
-                if i >= len {
-                    break;
-                }
-                data.append(self.token_uri_data.read((token_id, i)));
-                i += 1;
-            };
-
-            ArrayBytes { data, pending_word: 0, pending_word_len: len }
+        fn get_token_uri(self: @ContractState, token_id: u256) -> ByteArray {
+            self.token_uri.read(token_id)
         }
 
         fn get_owner_of(self: @ContractState, token_id: u256) -> ContractAddress {
