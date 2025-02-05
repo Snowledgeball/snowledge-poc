@@ -4,9 +4,17 @@ pub trait IDecentralizedId<TContractState> {
     #[external(v0)]
     fn safe_mint(ref self: TContractState, recipient: starknet::ContractAddress, uri: ByteArray);
     #[external(v0)]
-    fn get_token_uri(self: @TContractState, token_id: u256) -> ByteArray;
+    fn get_token_uri_by_id(self: @TContractState, token_id: u256) -> ByteArray;
+    #[external(v0)]
+    fn get_token_uri_by_address(
+        self: @TContractState, address: starknet::ContractAddress,
+    ) -> ByteArray;
     #[external(v0)]
     fn get_owner_of(self: @TContractState, token_id: u256) -> starknet::ContractAddress;
+    #[external(v0)]
+    fn set_token_uri_by_address(
+        ref self: TContractState, address: starknet::ContractAddress, uri: ByteArray,
+    );
     #[external(v0)]
     fn transfer(
         ref self: TContractState,
@@ -51,7 +59,8 @@ pub mod DecentralizedId {
     struct Storage {
         total_supply: u256,
         owner_of: Map<u256, ContractAddress>,
-        token_uri: Map<u256, ByteArray>,
+        token_uri_by_id: Map<u256, ByteArray>,
+        token_uri_by_address: Map<ContractAddress, ByteArray>,
         #[substorage(v0)]
         erc721: ERC721Component::Storage,
         #[substorage(v0)]
@@ -98,18 +107,30 @@ pub mod DecentralizedId {
             assert(current_owner.is_zero(), Errors::TokenAlreadyMinted);
 
             self.owner_of.write(token_id, recipient);
-            self.token_uri.write(token_id, uri);
+            self.token_uri_by_id.write(token_id, uri.clone());
+            self.token_uri_by_address.write(recipient, uri);
             let data: Array<felt252> = array![]; // Pas de data car pas de onERC721Received
             self.erc721.safe_mint(recipient, token_id.into(), data.span());
             self.total_supply.write(self.total_supply.read() + 1);
         }
 
-        fn get_token_uri(self: @ContractState, token_id: u256) -> ByteArray {
-            self.token_uri.read(token_id)
+        fn get_token_uri_by_id(self: @ContractState, token_id: u256) -> ByteArray {
+            self.token_uri_by_id.read(token_id)
+        }
+
+        fn get_token_uri_by_address(self: @ContractState, address: ContractAddress) -> ByteArray {
+            self.token_uri_by_address.read(address)
         }
 
         fn get_owner_of(self: @ContractState, token_id: u256) -> ContractAddress {
             self.owner_of.read(token_id)
+        }
+
+        fn set_token_uri_by_address(
+            ref self: ContractState, address: ContractAddress, uri: ByteArray,
+        ) {
+            self.ownable.assert_only_owner();
+            self.token_uri_by_address.write(address, uri);
         }
 
         fn transfer(
