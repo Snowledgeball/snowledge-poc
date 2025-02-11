@@ -1,10 +1,46 @@
+use openzeppelin_introspection::src5::SRC5Component;
+use openzeppelin_token::erc721::{ERC721HooksEmptyImpl, ERC721Component::{HasComponent}};
+use openzeppelin_token::erc721::interface::IERC721Metadata;
+
+#[starknet::interface]
+trait IIERC721Metadata<TState> {
+    fn name(self: @TState) -> ByteArray;
+    fn symbol(self: @TState) -> ByteArray;
+    fn token_uri(self: @TState, tokenId: u256) -> ByteArray;
+    fn tokenURI(self: @TState, tokenId: u256) -> ByteArray;
+}
+
+#[starknet::embeddable]
+impl IIERC721MetadataImpl<
+    TContractState,
+    +HasComponent<TContractState>,
+    +SRC5Component::HasComponent<TContractState>,
+    +Drop<TContractState>,
+    impl DID: IDecentralizedId<TContractState>,
+> of IIERC721Metadata<TContractState> {
+    fn name(self: @TContractState) -> ByteArray {
+        let component = HasComponent::get_component(self);
+        IERC721Metadata::name(component)
+    }
+
+    fn symbol(self: @TContractState) -> ByteArray {
+        let component = HasComponent::get_component(self);
+        IERC721Metadata::symbol(component)
+    }
+
+    fn token_uri(self: @TContractState, tokenId: u256) -> ByteArray {
+        DID::get_token_uri_by_id(self, tokenId)
+    }
+
+    fn tokenURI(self: @TContractState, tokenId: u256) -> ByteArray {
+        self.token_uri(tokenId)
+    }
+}
 // SPDX-License-Identifier: MIT
 #[starknet::interface]
 pub trait IDecentralizedId<TContractState> {
     #[external(v0)]
     fn safe_mint(ref self: TContractState, recipient: starknet::ContractAddress, uri: ByteArray);
-    #[external(v0)]
-    fn get_token_uri_by_id(self: @TContractState, token_id: u256) -> ByteArray;
     #[external(v0)]
     fn get_token_uri_by_address(
         self: @TContractState, address: starknet::ContractAddress,
@@ -16,12 +52,11 @@ pub trait IDecentralizedId<TContractState> {
         ref self: TContractState, address: starknet::ContractAddress, uri: ByteArray,
     );
     #[external(v0)]
-    fn transfer(
-        ref self: TContractState,
-        from: starknet::ContractAddress,
-        to: starknet::ContractAddress,
-        token_id: u256,
-    );
+    fn get_token_uri_by_id(self: @TContractState, token_id: u256) -> ByteArray;
+    #[external(v0)]
+    fn set_token_uri_by_id(ref self: TContractState, token_id: u256, uri: ByteArray);
+    #[external(v0)]
+    fn transfer(self: @TContractState);
 }
 
 
@@ -40,17 +75,25 @@ pub mod DecentralizedId {
     use core::num::traits::Zero;
     use core::array::{ArrayTrait, ToSpanTrait};
 
-    component!(path: ERC721Component, storage: erc721, event: ERC721Event);
     component!(path: SRC5Component, storage: src5, event: SRC5Event);
+    component!(path: ERC721Component, storage: erc721, event: ERC721Event);
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
 
 
     #[abi(embed_v0)]
     impl OwnableImpl = OwnableComponent::OwnableImpl<ContractState>;
 
-    // External
+    // ERC721
     #[abi(embed_v0)]
-    impl ERC721MixinImpl = ERC721Component::ERC721MixinImpl<ContractState>;
+    impl ERC721Impl = ERC721Component::ERC721Impl<ContractState>;
+    #[abi(embed_v0)]
+    impl ERC721CamelOnlyImpl = ERC721Component::ERC721CamelOnlyImpl<ContractState>;
+    #[abi(embed_v0)]
+    impl IIERC721MetadataImpl = super::IIERC721MetadataImpl<ContractState>;
+
+    // SRC5
+    #[abi(embed_v0)]
+    impl SRC5Impl = SRC5Component::SRC5Impl<ContractState>;
 
     // Internal
     impl ERC721InternalImpl = ERC721Component::InternalImpl<ContractState>;
@@ -90,7 +133,7 @@ pub mod DecentralizedId {
     fn constructor(ref self: ContractState, owner: ContractAddress) {
         let name = "DecentralizedId";
         let symbol = "DID";
-        let base_uri = "indigo-hidden-meerkat-77.mypinata.cloud";
+        let base_uri = "";
 
         self.total_supply.write(0);
         self.erc721.initializer(name, symbol, base_uri);
@@ -114,10 +157,6 @@ pub mod DecentralizedId {
             self.total_supply.write(self.total_supply.read() + 1);
         }
 
-        fn get_token_uri_by_id(self: @ContractState, token_id: u256) -> ByteArray {
-            self.token_uri_by_id.read(token_id)
-        }
-
         fn get_token_uri_by_address(self: @ContractState, address: ContractAddress) -> ByteArray {
             self.token_uri_by_address.read(address)
         }
@@ -133,9 +172,16 @@ pub mod DecentralizedId {
             self.token_uri_by_address.write(address, uri);
         }
 
-        fn transfer(
-            ref self: ContractState, from: ContractAddress, to: ContractAddress, token_id: u256,
-        ) {
+        fn set_token_uri_by_id(ref self: ContractState, token_id: u256, uri: ByteArray) {
+            self.ownable.assert_only_owner();
+            self.token_uri_by_id.write(token_id, uri);
+        }
+
+        fn get_token_uri_by_id(self: @ContractState, token_id: u256) -> ByteArray {
+            self.token_uri_by_id.read(token_id)
+        }
+
+        fn transfer(self: @ContractState) {
             panic(array![Errors::NonTransferable]);
         }
     }
