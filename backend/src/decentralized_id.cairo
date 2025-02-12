@@ -39,20 +39,23 @@ impl IIERC721MetadataImpl<
 // SPDX-License-Identifier: MIT
 #[starknet::interface]
 pub trait IDecentralizedId<TContractState> {
-    #[external(v0)]
-    fn safe_mint(ref self: TContractState, recipient: starknet::ContractAddress, uri: ByteArray);
+    // Getters
     #[external(v0)]
     fn get_token_uri_by_address(
         self: @TContractState, address: starknet::ContractAddress,
     ) -> ByteArray;
     #[external(v0)]
+    fn get_token_uri_by_id(self: @TContractState, token_id: u256) -> ByteArray;
+    #[external(v0)]
     fn get_owner_of(self: @TContractState, token_id: u256) -> starknet::ContractAddress;
+
+    // Setters
+    #[external(v0)]
+    fn safe_mint(ref self: TContractState, recipient: starknet::ContractAddress, uri: ByteArray);
     #[external(v0)]
     fn set_token_uri_by_address(
         ref self: TContractState, address: starknet::ContractAddress, uri: ByteArray,
     );
-    #[external(v0)]
-    fn get_token_uri_by_id(self: @TContractState, token_id: u256) -> ByteArray;
     #[external(v0)]
     fn set_token_uri_by_id(ref self: TContractState, token_id: u256, uri: ByteArray);
     #[external(v0)]
