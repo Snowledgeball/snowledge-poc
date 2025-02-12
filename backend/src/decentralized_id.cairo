@@ -105,6 +105,7 @@ pub mod DecentralizedId {
     struct Storage {
         total_supply: u256,
         owner_of: Map<u256, ContractAddress>,
+        token_id_by_address: Map<ContractAddress, u256>,
         token_uri_by_id: Map<u256, ByteArray>,
         token_uri_by_address: Map<ContractAddress, ByteArray>,
         #[substorage(v0)]
@@ -153,6 +154,7 @@ pub mod DecentralizedId {
             assert(current_owner.is_zero(), Errors::TokenAlreadyMinted);
 
             self.owner_of.write(token_id, recipient);
+            self.token_id_by_address.write(recipient, token_id);
             self.token_uri_by_id.write(token_id, uri.clone());
             self.token_uri_by_address.write(recipient, uri);
             let data: Array<felt252> = array![]; // Pas de data car pas de onERC721Received
@@ -164,6 +166,9 @@ pub mod DecentralizedId {
             self.token_uri_by_address.read(address)
         }
 
+        fn get_token_uri_by_id(self: @ContractState, token_id: u256) -> ByteArray {
+            self.token_uri_by_id.read(token_id)
+        }
         fn get_owner_of(self: @ContractState, token_id: u256) -> ContractAddress {
             self.owner_of.read(token_id)
         }
@@ -172,16 +177,15 @@ pub mod DecentralizedId {
             ref self: ContractState, address: ContractAddress, uri: ByteArray,
         ) {
             self.ownable.assert_only_owner();
-            self.token_uri_by_address.write(address, uri);
+            let cloned_uri = uri.clone();
+            self.token_uri_by_address.write(address, cloned_uri);
+            let token_id = self.token_id_by_address.read(address);
+            self.set_token_uri_by_id(token_id, uri);
         }
 
         fn set_token_uri_by_id(ref self: ContractState, token_id: u256, uri: ByteArray) {
             self.ownable.assert_only_owner();
             self.token_uri_by_id.write(token_id, uri);
-        }
-
-        fn get_token_uri_by_id(self: @ContractState, token_id: u256) -> ByteArray {
-            self.token_uri_by_id.read(token_id)
         }
 
         fn transfer(self: @ContractState) {
