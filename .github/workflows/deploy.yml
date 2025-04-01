@@ -11,12 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Debug secrets (ne révèle pas les valeurs)
-        run: |
-          if [ -n "$PREVIEW_URL" ]; then echo "PREVIEW_DATABASE_URL est défini"; else echo "PREVIEW_DATABASE_URL n'est pas défini"; fi
-          if [ -n "$PROD_URL" ]; then echo "PRODUCTION_DATABASE_URL est défini"; else echo "PRODUCTION_DATABASE_URL n'est pas défini"; fi
         env:
           PREVIEW_URL: ${{ secrets.PREVIEW_DATABASE_URL }}
           PROD_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          if [ -n "$PREVIEW_URL" ]; then echo "PREVIEW_DATABASE_URL est défini"; else echo "PREVIEW_DATABASE_URL n'est pas défini"; fi
+          if [ -n "$PROD_URL" ]; then echo "PRODUCTION_DATABASE_URL est défini"; else echo "PRODUCTION_DATABASE_URL n'est pas défini"; fi
 
       - name: Checkout code
         uses: actions/checkout@v4
