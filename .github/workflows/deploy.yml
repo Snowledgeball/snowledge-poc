@@ -18,27 +18,21 @@ jobs:
         with:
           node-version: "18"
 
-      - name: Navigate to frontend directory
-        run: cd frontend
-
       - name: Install dependencies
-        run: |
-          cd frontend
-          npm ci
+        working-directory: ./frontend
+        run: npm ci
 
       - name: Deploy migrations to Preview
         if: github.ref == 'refs/heads/main'
-        run: |
-          cd frontend
-          npx prisma migrate deploy
+        working-directory: ./frontend
+        run: npx prisma migrate deploy
         env:
           DATABASE_URL: ${{ secrets.PREVIEW_DATABASE_URL }}
 
       - name: Deploy migrations to Production
         if: github.ref == 'refs/heads/production'
-        run: |
-          cd frontend
-          npx prisma migrate deploy
+        working-directory: ./frontend
+        run: npx prisma migrate deploy
         env:
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
 
@@ -50,3 +44,4 @@ jobs:
           vercel-args: ${{ github.ref == 'refs/heads/production' && '--prod' || '' }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: ./frontend
